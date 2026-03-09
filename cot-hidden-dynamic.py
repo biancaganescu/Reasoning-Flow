@@ -4,7 +4,7 @@ import json
 import os
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Literal, Optional
-
+from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import torch
@@ -69,6 +69,7 @@ def step_vectors_for_sequence(
             context = step if t == 0 else (context + "\n" + step)
         else:
             context = step
+        print(f"Context for step {t + 1}: {context}\n---")
 
         # Use add_special_tokens=False to keep alignment consistent across steps
         enc = tokenizer(context, return_tensors="pt", add_special_tokens=False)
@@ -96,6 +97,7 @@ def step_vectors_for_sequence(
             else:
                 prev_len = 0
             start = min(prev_len, L)  # guard
+            print("Pooling tokens from position", start, "to", L - 1)
             step_slice = hs[:, start:, :] if start < L else hs[:, -1:, :]
             if pooling == "step_mean":
                 v = step_slice.mean(dim=1).squeeze(0).detach().float().cpu().numpy()
@@ -177,6 +179,7 @@ def main():
 
     # Load dataset
     items = load_dataset_any_logic(args.data_file)
+    items = [items[1]]  # TEMP: subset for testing
     if args.sections != "all":
         keep = {s.strip() for s in args.sections.split(",") if s.strip()}
         items = [it for it in items if it.logic in keep]
@@ -253,7 +256,7 @@ def main():
         # Build step vectors per item
         label2steps: Dict[str, List[np.ndarray]] = {}
         label2meta: Dict[str, Dict[str, Optional[str] | int]] = {}
-        for it in items:
+        for it in tqdm(items):
             vecs = step_vectors_for_sequence(
                 tokenizer, model, it.steps,
                 pooling=args.pooling,
@@ -327,16 +330,16 @@ def main():
                 mean_=pca_model.mean_.astype(np.float32),
             )
             # Save per-label projected trajectories as CSV
-            for label, embs in sub.items():
-                traj = np.vstack(embs)
-                proj = pca_model.transform(traj)
-                df_proj = pd.DataFrame({
-                    "t": np.arange(1, proj.shape[0] + 1, dtype=int),
-                    "pc1": proj[:, 0].astype(np.float32),
-                    "pc2": proj[:, 1].astype(np.float32),
-                    "pc3": proj[:, 2].astype(np.float32),
-                })
-                df_proj.to_csv(os.path.join(pca_dir, f"{_safe_label(label)}_pca3d.csv"), index=False)
+            # for label, embs in sub.items():
+            #     traj = np.vstack(embs)
+            #     proj = pca_model.transform(traj)
+            #     df_proj = pd.DataFrame({
+            #         "t": np.arange(1, proj.shape[0] + 1, dtype=int),
+            #         "pc1": proj[:, 0].astype(np.float32),
+            #         "pc2": proj[:, 1].astype(np.float32),
+            #         "pc3": proj[:, 2].astype(np.float32),
+            #     })
+            #     df_proj.to_csv(os.path.join(pca_dir, f"{_safe_label(label)}_pca3d.csv"), index=False)
 
             plot_trajectories_pca(
                 sub,

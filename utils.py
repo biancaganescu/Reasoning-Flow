@@ -48,7 +48,7 @@ def plot_trajectories_pca(
 
     # Fit PCA on all points
     all_points = np.vstack([vec for embs in trajectories.values() for vec in embs])
-    pca = PCA(n_components=3, random_state=42).fit(all_points)
+    pca = PCA(n_components=2, random_state=42).fit(all_points)
 
     # Plot each trajectory
     fig = go.Figure()
@@ -57,10 +57,10 @@ def plot_trajectories_pca(
             embs = embs[1:]
         traj = np.vstack(embs)
         traj_3d = pca.transform(traj)
-        trace = go.Scatter3d(
+        trace = go.Scatter(
             x=traj_3d[:, 0],
             y=traj_3d[:, 1],
-            z=traj_3d[:, 2],
+            # z=traj_3d[:, 2],
             mode="lines+markers",
             name=label,
             text=[f"{label} - t={i+1}" for i in range(len(traj))],
@@ -75,7 +75,7 @@ def plot_trajectories_pca(
         scene=dict(
             xaxis_title="PC 1",
             yaxis_title="PC 2",
-            zaxis_title="PC 3"
+            # zaxis_title="PC 3"
         ),
         legend_title="CoT Version"
     )
